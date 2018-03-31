@@ -1,0 +1,318 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>12 Septemner 2017 - </title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="">
+
+        <link rel="stylesheet" href="book.css">
+        <link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+        <!-- MathJax -->
+        <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = localStorage.getItem('theme');
+            if (theme == null) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = localStorage.getItem('sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ol class="chapter"><li class="affix"><a href="welcome.html">Ricky.Hosfelt.io</a></li><li><a href="rust_bench.html" class="active"><strong aria-hidden="true">1.</strong> 12 Septemner 2017</a></li><li><a href="kitten.html"><strong aria-hidden="true">2.</strong> 7 August 2017</a></li><li><a href="challenges.html"><strong aria-hidden="true">3.</strong> 23 April 2017</a></li><li><a href="mbp.html"><strong aria-hidden="true">4.</strong> 26 February 2017</a></li><li><a href="init.html"><strong aria-hidden="true">5.</strong> 18 February 2017</a></li></ol>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush"></i>
+                    </div>
+
+                    <h1 class="menu-title">12 Septemner 2017 - </h1>
+
+                    <div class="right-buttons">
+                        <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="rust_bench.html#rust-benchmarking" id="rust-benchmarking"><h2>Rust Benchmarking</h2></a>
+<a class="header" href="rust_bench.html#normal-couples-talk" id="normal-couples-talk"><h3>Normal Couples Talk</h3></a>
+<p>Recently my wife and I were talking about Rust and Rust loops (as a totally normal couple does). We were wondering what the faster way of traversing a loop were a <code>for</code> loop with <code>.iter()</code> or a closure from the <code>.iter()</code>. Turns out the answer is it depends! Normally I'm dealing with bytes (so <code>u8</code>) and doing fairly easy math over a vector and <code>.iter()</code> is slightly faster; however anything more complex a closure is the Rust way and faster.</p>
+<a class="header" href="rust_bench.html#onto-the-benchmarking" id="onto-the-benchmarking"><h3>Onto the Benchmarking</h3></a>
+<p>So the best way to test this is using <a href="https://www.rust-lang.org/en-US/install.html">Rust Nightly</a> and the <code>cargo bench</code> feature. This involves using the <a href="https://crates.io/crates/bencher">Bencher crate</a>. I found the documentation great, but I wanted to write up a post describing the full process of setting up the tests.</p>
+<a class="header" href="rust_bench.html#cargotoml" id="cargotoml"><h4>Cargo.toml</h4></a>
+<p>Included in the<code>Cargo.toml</code> file are:</p>
+<pre><code>[dependencies]
+rayon = &quot;*&quot;
+rand = &quot;*&quot;
+bencher = &quot;*&quot;
+
+[[bench]]
+name = &quot;main&quot;
+harness = false
+</code></pre>
+<p>Here [[bench]] is the trigger for the <code>Benches</code> crate to look into a <code>benches</code> folder (at the top level with <code>src</code> and <code>target</code>) for the file <code>main.rs</code> This is the file the <code>cargo bench</code> command will run on. The reason I called this main here instead of a proper test name is, for this example I just symbolicly linked the main under <code>src</code> to the <code>benches</code> folder. I am a heathen I know, but it got the job done. Normally we would import our crate and set up a separate test suite.</p>
+<a class="header" href="rust_bench.html#mainrs" id="mainrs"><h3>main.rs</h3></a>
+<p>First, well do the <code>extern crate</code> and <code>use</code> dance:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+extern crate rayon;
+extern crate rand;
+#[macro_use]
+extern crate bencher;
+
+use bencher::Bencher;
+use rayon::prelude::*;
+use rand::{thread_rng, Rng};
+
+#}</code></pre></pre>
+<p>Next, we will set up the functions we want to test. The Bencher crate will test <em>everything</em> in the function so we want to make sure we're not loading or creating data in the function or our test results will be off:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+fn vec_iter(test_vec: &amp;mut Vec&lt;u8&gt;) -&gt; () {
+    for i in test_vec.iter_mut() {
+        *i += 1;
+    }
+}
+
+fn vec_par(test_vec: &amp;mut Vec&lt;u8&gt;) {
+    test_vec.par_iter_mut().for_each(|i| *i +=1);
+}
+
+fn vec_closure(test_vec: &amp;mut Vec&lt;u8&gt;) {
+    test_vec.iter_mut().map(|i| *i+1).collect::&lt;Vec&lt;_&gt;&gt;();
+}
+#}</code></pre></pre>
+<p>Keep in mind this is all <em>outside</em> of a main function. Next we will set up the functions for bench here's the first three in my code:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+    fn small_vec_par_bench(bench: &amp;mut Bencher) {
+        let mut small_vec: Vec&lt;u8&gt; = Vec::with_capacity(20);
+        unsafe {small_vec.set_len(20)}
+        thread_rng().fill_bytes(&amp;mut small_vec);
+
+        bench.iter(|| {vec_par(&amp;mut small_vec)});
+    }
+
+    fn small_vec_iter_bench(bench: &amp;mut Bencher) {
+        let mut small_vec: Vec&lt;u8&gt; = Vec::with_capacity(20);
+        unsafe {small_vec.set_len(20)}
+        thread_rng().fill_bytes(&amp;mut small_vec);
+
+        bench.iter(|| {vec_iter(&amp;mut small_vec)});
+    }
+
+    fn small_vec_closure_bench(bench: &amp;mut Bencher) {
+        let mut small_vec: Vec&lt;u8&gt; = Vec::with_capacity(20);
+        unsafe {small_vec.set_len(20)}
+        thread_rng().fill_bytes(&amp;mut small_vec);
+
+        bench.iter(|| {vec_closure(&amp;mut small_vec)});
+    }
+#}</code></pre></pre>
+<p>Again, I know I am a heathen so ignore the <code>unsafe</code> blocks for this example. Let's look at the function, first the parameter to the signature is a bench instance <code>bench: &amp;mut Bencher</code>. This is a struct that runs our code several times to get the timing information with a +/- value for more accuracy. Next I am setting up the test data just some arbitrary bytes filled with the <code>rand</code> function. Finally we call that function in the <code>bench.iter()</code> closure form. This will test just what we put in the closure for the timing tests.</p>
+<p>For completeness here's the rest of my tests:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+
+#fn main() {
+    fn med_vec_par_bench(bench: &amp;mut Bencher) {
+        let mut med_vec: Vec&lt;u8&gt; = Vec::with_capacity(1000);
+        unsafe {med_vec.set_len(1000)}
+        thread_rng().fill_bytes(&amp;mut med_vec);
+
+        bench.iter(|| {vec_par(&amp;mut med_vec)});
+    }
+
+    fn med_vec_iter_bench(bench: &amp;mut Bencher) {
+        let mut med_vec: Vec&lt;u8&gt; = Vec::with_capacity(1000);
+        unsafe {med_vec.set_len(1000)}
+
+        thread_rng().fill_bytes(&amp;mut med_vec);
+
+        bench.iter(|| {vec_iter(&amp;mut med_vec)});
+    }
+
+    fn med_vec_closure_bench(bench: &amp;mut Bencher) {
+        let mut med_vec: Vec&lt;u8&gt; = Vec::with_capacity(1000);
+        unsafe {med_vec.set_len(1000)}
+        thread_rng().fill_bytes(&amp;mut med_vec);
+
+        bench.iter(|| {vec_closure(&amp;mut med_vec)});
+    }
+
+    fn large_vec_par_bench(bench: &amp;mut Bencher) {
+        let mut large_vec: Vec&lt;u8&gt; = Vec::with_capacity(20000);
+        unsafe {large_vec.set_len(20000)}
+        thread_rng().fill_bytes(&amp;mut large_vec);
+
+        bench.iter(|| {vec_par(&amp;mut large_vec)});
+    }
+
+    fn large_vec_iter_bench(bench: &amp;mut Bencher) {
+        let mut large_vec: Vec&lt;u8&gt; = Vec::with_capacity(20000);
+        unsafe {large_vec.set_len(20000)}
+        thread_rng().fill_bytes(&amp;mut large_vec);
+
+        bench.iter(|| {vec_iter(&amp;mut large_vec)});
+    }
+
+    fn large_vec_closure_bench(bench: &amp;mut Bencher) {
+        let mut large_vec: Vec&lt;u8&gt; = Vec::with_capacity(20000);
+        unsafe {large_vec.set_len(20000)}
+        thread_rng().fill_bytes(&amp;mut large_vec);
+
+        bench.iter(|| {vec_closure(&amp;mut large_vec)});
+    }
+
+    fn massive_vec_par_bench(bench: &amp;mut Bencher) {
+        let mut massive_vec: Vec&lt;u8&gt; = Vec::with_capacity(2000000);
+        unsafe {massive_vec.set_len(2000000)}
+        thread_rng().fill_bytes(&amp;mut massive_vec);
+
+        bench.iter(|| {vec_par(&amp;mut massive_vec)});
+    }
+
+    fn massive_vec_iter_bench(bench: &amp;mut Bencher) {
+        let mut massive_vec: Vec&lt;u8&gt; = Vec::with_capacity(2000000);
+        unsafe {massive_vec.set_len(2000000)}
+        thread_rng().fill_bytes(&amp;mut massive_vec);
+
+        bench.iter(|| {vec_iter(&amp;mut massive_vec)});
+    }
+
+    fn massive_vec_closure_bench(bench: &amp;mut Bencher) {
+        let mut massive_vec: Vec&lt;u8&gt; = Vec::with_capacity(2000000);
+        unsafe {massive_vec.set_len(2000000)}
+        thread_rng().fill_bytes(&amp;mut massive_vec);
+
+        bench.iter(|| {vec_closure(&amp;mut massive_vec)});
+    }
+
+        fn ginormous_vec_par_bench(bench: &amp;mut Bencher) {
+        let mut ginormous_vec: Vec&lt;u8&gt; = Vec::with_capacity(200000000);
+        unsafe {ginormous_vec.set_len(200000000)}
+        thread_rng().fill_bytes(&amp;mut ginormous_vec);
+
+        bench.iter(|| {vec_par(&amp;mut ginormous_vec)});
+    }
+
+    fn ginormous_vec_iter_bench(bench: &amp;mut Bencher) {
+        let mut ginormous_vec: Vec&lt;u8&gt; = Vec::with_capacity(200000000);
+        unsafe {ginormous_vec.set_len(200000000)}
+        thread_rng().fill_bytes(&amp;mut ginormous_vec);
+
+        bench.iter(|| {vec_iter(&amp;mut ginormous_vec)});
+    }
+
+    fn ginormous_vec_closure_bench(bench: &amp;mut Bencher) {
+        let mut ginormous_vec: Vec&lt;u8&gt; = Vec::with_capacity(200000000);
+        unsafe {ginormous_vec.set_len(200000000)}
+        thread_rng().fill_bytes(&amp;mut ginormous_vec);
+
+        bench.iter(|| {vec_closure(&amp;mut ginormous_vec)});
+    }
+#}</code></pre></pre>
+<p>Finally we need to tell the bencher which functions to include and test. We do this by first naming and then giving the function signatures to a <code>benchmark_group!()</code> macro (hence the <code>#[marco_use]</code> on our crate import).</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+benchmark_group!(benches,
+small_vec_iter_bench, small_vec_par_bench, small_vec_closure_bench,
+med_vec_iter_bench, med_vec_par_bench, med_vec_closure_bench,
+large_vec_iter_bench, large_vec_par_bench,large_vec_closure_bench,
+massive_vec_iter_bench, massive_vec_par_bench, massive_vec_closure_bench,
+ginormous_vec_closure_bench, ginormous_vec_iter_bench, ginormous_vec_par_bench);
+#}</code></pre></pre>
+<p>Lastly, a macro call to the <code>benchmark_main!()</code>giving it the group we wish to test.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+benchmark_main!(benches);
+#}</code></pre></pre>
+<a class="header" href="rust_bench.html#results-and-conclusion" id="results-and-conclusion"><h3>Results and Conclusion</h3></a>
+<p>That's it! We can now run <code>cargo bench</code> and get some results! Here's the results on my Macbook Pro (3.1 GHz Intel Core i5):</p>
+<p><img src="rust_bench_results.png" alt="" /></p>
+<p>Overall the benchmark suite is really easy to use, because you use closures to send off the exact code to test it is also very accurate. So go refactor some code and performance test to get the most out of Rust!</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a href="welcome.html" class="mobile-nav-chapters previous">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="kitten.html" class="mobile-nav-chapters next">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="welcome.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="kitten.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+    </body>
+</html>

@@ -1,0 +1,51 @@
+body {
+    background-color: 1d1f21;
+}
+
+h1 {
+    color: 2bbc8a;
+    font-family: monospace;
+}
+
+h2 {
+    color: 2bbc8a;
+    font-family: monospace;
+}
+
+p {
+    color: cccccc;
+    font-family: monospace;
+    font-size: 16px;
+}
+div { 
+    color: cccccc;
+    font-family: monospace;
+    font-size: 16px;
+}
+
+a {
+    color: 67cc5d;
+    font-family: monospace;
+}
+
+ul {
+    color: cccccc;
+    font-family: monospace;
+    font-size: 16px;
+}
+ol {
+    color: cccccc;
+    font-family: monospace;
+    font-size: 16px;
+}
+
+td {
+    color: cccccc;
+    font-family: monospace;
+    font-size: 16px;
+}
+code {
+    background-color: 777777;
+    color: cccccc;
+    font-family: monospace;
+}

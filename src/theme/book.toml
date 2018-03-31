@@ -1,0 +1,4 @@
+title = "Ricky's Blog"
+author = "Ricky"
+description = "Ricky's Blog"
+dest = "/var/ricky/html/blog"

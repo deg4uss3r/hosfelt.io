@@ -1,0 +1,23 @@
+#!/bin/bash
+
+which_one=`whoami`
+
+cd ~
+if [[ -d ~/blog ]]; then
+        rm -rf ~/blog
+fi
+
+mdbook build
+mv ./book/ ./blog/
+
+if [[ $which_one == "rthosfelt" ]]; then
+    rm -rf /var/ricky/html/blog
+    mv blog /var/ricky/html/
+    echo "deployed Ricky's blog!"
+elif [[ $which_one == "ddhosfelt" ]]; then
+    rm -rf /var/diane/html/blog
+    mv blog /var/diane/html/
+    echo "Deployed Diane's blog!"
+else
+    echo "who the fuck are you?!"
+fi

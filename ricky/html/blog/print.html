@@ -1,0 +1,388 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title></title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="">
+
+        <link rel="stylesheet" href="book.css">
+        <link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+        <!-- MathJax -->
+        <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = localStorage.getItem('theme');
+            if (theme == null) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = localStorage.getItem('sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ol class="chapter"><li class="affix"><a href="welcome.html">Ricky.Hosfelt.io</a></li><li><a href="rust_bench.html"><strong aria-hidden="true">1.</strong> 12 Septemner 2017</a></li><li><a href="kitten.html"><strong aria-hidden="true">2.</strong> 7 August 2017</a></li><li><a href="challenges.html"><strong aria-hidden="true">3.</strong> 23 April 2017</a></li><li><a href="mbp.html"><strong aria-hidden="true">4.</strong> 26 February 2017</a></li><li><a href="init.html"><strong aria-hidden="true">5.</strong> 18 February 2017</a></li></ol>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush"></i>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="print.html#welcome" id="welcome"><h1>Welcome</h1></a>
+<p>My name is Ricky and welcome to my Markdown blog!</p>
+<p>I built this site to share some technical writings and play around with fun things. I used <code>mdbook</code> to build this blog <a href="https://github.com/azerupi/mdBook">found here</a> it is pretty awesome and written in <a href="https://www.rust-lang.org/en-US/">Rust</a>!</p>
+<p>Stay tunned for more, and hopefully a less corny about me section.</p>
+<a class="header" href="print.html#rust-benchmarking" id="rust-benchmarking"><h2>Rust Benchmarking</h2></a>
+<a class="header" href="print.html#normal-couples-talk" id="normal-couples-talk"><h3>Normal Couples Talk</h3></a>
+<p>Recently my wife and I were talking about Rust and Rust loops (as a totally normal couple does). We were wondering what the faster way of traversing a loop were a <code>for</code> loop with <code>.iter()</code> or a closure from the <code>.iter()</code>. Turns out the answer is it depends! Normally I'm dealing with bytes (so <code>u8</code>) and doing fairly easy math over a vector and <code>.iter()</code> is slightly faster; however anything more complex a closure is the Rust way and faster.</p>
+<a class="header" href="print.html#onto-the-benchmarking" id="onto-the-benchmarking"><h3>Onto the Benchmarking</h3></a>
+<p>So the best way to test this is using <a href="https://www.rust-lang.org/en-US/install.html">Rust Nightly</a> and the <code>cargo bench</code> feature. This involves using the <a href="https://crates.io/crates/bencher">Bencher crate</a>. I found the documentation great, but I wanted to write up a post describing the full process of setting up the tests.</p>
+<a class="header" href="print.html#cargotoml" id="cargotoml"><h4>Cargo.toml</h4></a>
+<p>Included in the<code>Cargo.toml</code> file are:</p>
+<pre><code>[dependencies]
+rayon = &quot;*&quot;
+rand = &quot;*&quot;
+bencher = &quot;*&quot;
+
+[[bench]]
+name = &quot;main&quot;
+harness = false
+</code></pre>
+<p>Here [[bench]] is the trigger for the <code>Benches</code> crate to look into a <code>benches</code> folder (at the top level with <code>src</code> and <code>target</code>) for the file <code>main.rs</code> This is the file the <code>cargo bench</code> command will run on. The reason I called this main here instead of a proper test name is, for this example I just symbolicly linked the main under <code>src</code> to the <code>benches</code> folder. I am a heathen I know, but it got the job done. Normally we would import our crate and set up a separate test suite.</p>
+<a class="header" href="print.html#mainrs" id="mainrs"><h3>main.rs</h3></a>
+<p>First, well do the <code>extern crate</code> and <code>use</code> dance:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+extern crate rayon;
+extern crate rand;
+#[macro_use]
+extern crate bencher;
+
+use bencher::Bencher;
+use rayon::prelude::*;
+use rand::{thread_rng, Rng};
+
+#}</code></pre></pre>
+<p>Next, we will set up the functions we want to test. The Bencher crate will test <em>everything</em> in the function so we want to make sure we're not loading or creating data in the function or our test results will be off:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+fn vec_iter(test_vec: &amp;mut Vec&lt;u8&gt;) -&gt; () {
+    for i in test_vec.iter_mut() {
+        *i += 1;
+    }
+}
+
+fn vec_par(test_vec: &amp;mut Vec&lt;u8&gt;) {
+    test_vec.par_iter_mut().for_each(|i| *i +=1);
+}
+
+fn vec_closure(test_vec: &amp;mut Vec&lt;u8&gt;) {
+    test_vec.iter_mut().map(|i| *i+1).collect::&lt;Vec&lt;_&gt;&gt;();
+}
+#}</code></pre></pre>
+<p>Keep in mind this is all <em>outside</em> of a main function. Next we will set up the functions for bench here's the first three in my code:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+    fn small_vec_par_bench(bench: &amp;mut Bencher) {
+        let mut small_vec: Vec&lt;u8&gt; = Vec::with_capacity(20);
+        unsafe {small_vec.set_len(20)}
+        thread_rng().fill_bytes(&amp;mut small_vec);
+
+        bench.iter(|| {vec_par(&amp;mut small_vec)});
+    }
+
+    fn small_vec_iter_bench(bench: &amp;mut Bencher) {
+        let mut small_vec: Vec&lt;u8&gt; = Vec::with_capacity(20);
+        unsafe {small_vec.set_len(20)}
+        thread_rng().fill_bytes(&amp;mut small_vec);
+
+        bench.iter(|| {vec_iter(&amp;mut small_vec)});
+    }
+
+    fn small_vec_closure_bench(bench: &amp;mut Bencher) {
+        let mut small_vec: Vec&lt;u8&gt; = Vec::with_capacity(20);
+        unsafe {small_vec.set_len(20)}
+        thread_rng().fill_bytes(&amp;mut small_vec);
+
+        bench.iter(|| {vec_closure(&amp;mut small_vec)});
+    }
+#}</code></pre></pre>
+<p>Again, I know I am a heathen so ignore the <code>unsafe</code> blocks for this example. Let's look at the function, first the parameter to the signature is a bench instance <code>bench: &amp;mut Bencher</code>. This is a struct that runs our code several times to get the timing information with a +/- value for more accuracy. Next I am setting up the test data just some arbitrary bytes filled with the <code>rand</code> function. Finally we call that function in the <code>bench.iter()</code> closure form. This will test just what we put in the closure for the timing tests.</p>
+<p>For completeness here's the rest of my tests:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+
+#fn main() {
+    fn med_vec_par_bench(bench: &amp;mut Bencher) {
+        let mut med_vec: Vec&lt;u8&gt; = Vec::with_capacity(1000);
+        unsafe {med_vec.set_len(1000)}
+        thread_rng().fill_bytes(&amp;mut med_vec);
+
+        bench.iter(|| {vec_par(&amp;mut med_vec)});
+    }
+
+    fn med_vec_iter_bench(bench: &amp;mut Bencher) {
+        let mut med_vec: Vec&lt;u8&gt; = Vec::with_capacity(1000);
+        unsafe {med_vec.set_len(1000)}
+
+        thread_rng().fill_bytes(&amp;mut med_vec);
+
+        bench.iter(|| {vec_iter(&amp;mut med_vec)});
+    }
+
+    fn med_vec_closure_bench(bench: &amp;mut Bencher) {
+        let mut med_vec: Vec&lt;u8&gt; = Vec::with_capacity(1000);
+        unsafe {med_vec.set_len(1000)}
+        thread_rng().fill_bytes(&amp;mut med_vec);
+
+        bench.iter(|| {vec_closure(&amp;mut med_vec)});
+    }
+
+    fn large_vec_par_bench(bench: &amp;mut Bencher) {
+        let mut large_vec: Vec&lt;u8&gt; = Vec::with_capacity(20000);
+        unsafe {large_vec.set_len(20000)}
+        thread_rng().fill_bytes(&amp;mut large_vec);
+
+        bench.iter(|| {vec_par(&amp;mut large_vec)});
+    }
+
+    fn large_vec_iter_bench(bench: &amp;mut Bencher) {
+        let mut large_vec: Vec&lt;u8&gt; = Vec::with_capacity(20000);
+        unsafe {large_vec.set_len(20000)}
+        thread_rng().fill_bytes(&amp;mut large_vec);
+
+        bench.iter(|| {vec_iter(&amp;mut large_vec)});
+    }
+
+    fn large_vec_closure_bench(bench: &amp;mut Bencher) {
+        let mut large_vec: Vec&lt;u8&gt; = Vec::with_capacity(20000);
+        unsafe {large_vec.set_len(20000)}
+        thread_rng().fill_bytes(&amp;mut large_vec);
+
+        bench.iter(|| {vec_closure(&amp;mut large_vec)});
+    }
+
+    fn massive_vec_par_bench(bench: &amp;mut Bencher) {
+        let mut massive_vec: Vec&lt;u8&gt; = Vec::with_capacity(2000000);
+        unsafe {massive_vec.set_len(2000000)}
+        thread_rng().fill_bytes(&amp;mut massive_vec);
+
+        bench.iter(|| {vec_par(&amp;mut massive_vec)});
+    }
+
+    fn massive_vec_iter_bench(bench: &amp;mut Bencher) {
+        let mut massive_vec: Vec&lt;u8&gt; = Vec::with_capacity(2000000);
+        unsafe {massive_vec.set_len(2000000)}
+        thread_rng().fill_bytes(&amp;mut massive_vec);
+
+        bench.iter(|| {vec_iter(&amp;mut massive_vec)});
+    }
+
+    fn massive_vec_closure_bench(bench: &amp;mut Bencher) {
+        let mut massive_vec: Vec&lt;u8&gt; = Vec::with_capacity(2000000);
+        unsafe {massive_vec.set_len(2000000)}
+        thread_rng().fill_bytes(&amp;mut massive_vec);
+
+        bench.iter(|| {vec_closure(&amp;mut massive_vec)});
+    }
+
+        fn ginormous_vec_par_bench(bench: &amp;mut Bencher) {
+        let mut ginormous_vec: Vec&lt;u8&gt; = Vec::with_capacity(200000000);
+        unsafe {ginormous_vec.set_len(200000000)}
+        thread_rng().fill_bytes(&amp;mut ginormous_vec);
+
+        bench.iter(|| {vec_par(&amp;mut ginormous_vec)});
+    }
+
+    fn ginormous_vec_iter_bench(bench: &amp;mut Bencher) {
+        let mut ginormous_vec: Vec&lt;u8&gt; = Vec::with_capacity(200000000);
+        unsafe {ginormous_vec.set_len(200000000)}
+        thread_rng().fill_bytes(&amp;mut ginormous_vec);
+
+        bench.iter(|| {vec_iter(&amp;mut ginormous_vec)});
+    }
+
+    fn ginormous_vec_closure_bench(bench: &amp;mut Bencher) {
+        let mut ginormous_vec: Vec&lt;u8&gt; = Vec::with_capacity(200000000);
+        unsafe {ginormous_vec.set_len(200000000)}
+        thread_rng().fill_bytes(&amp;mut ginormous_vec);
+
+        bench.iter(|| {vec_closure(&amp;mut ginormous_vec)});
+    }
+#}</code></pre></pre>
+<p>Finally we need to tell the bencher which functions to include and test. We do this by first naming and then giving the function signatures to a <code>benchmark_group!()</code> macro (hence the <code>#[marco_use]</code> on our crate import).</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+benchmark_group!(benches,
+small_vec_iter_bench, small_vec_par_bench, small_vec_closure_bench,
+med_vec_iter_bench, med_vec_par_bench, med_vec_closure_bench,
+large_vec_iter_bench, large_vec_par_bench,large_vec_closure_bench,
+massive_vec_iter_bench, massive_vec_par_bench, massive_vec_closure_bench,
+ginormous_vec_closure_bench, ginormous_vec_iter_bench, ginormous_vec_par_bench);
+#}</code></pre></pre>
+<p>Lastly, a macro call to the <code>benchmark_main!()</code>giving it the group we wish to test.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+benchmark_main!(benches);
+#}</code></pre></pre>
+<a class="header" href="print.html#results-and-conclusion" id="results-and-conclusion"><h3>Results and Conclusion</h3></a>
+<p>That's it! We can now run <code>cargo bench</code> and get some results! Here's the results on my Macbook Pro (3.1 GHz Intel Core i5):</p>
+<p><img src="rust_bench_results.png" alt="" /></p>
+<p>Overall the benchmark suite is really easy to use, because you use closures to send off the exact code to test it is also very accurate. So go refactor some code and performance test to get the most out of Rust!</p>
+<a class="header" href="print.html#kittys-first-programming-challenge" id="kittys-first-programming-challenge"><h2>Kitty's First Programming Challenge</h2></a>
+<p>We recently started doing some programming challenges on the slack channel with my friends and the challenge was simple yet, very difficult!</p>
+<pre><code>Challenge 1: 
+
+Write FizzBuzz in a language you have never used before, OR in the MOST creative way possible! 
+
+For those who do not know these are the rules of FizzBuzz: 
+---------------------------------------------------------------------- 
+If a number is divisible by 3, print &quot;Fizz&quot;, 
+If a number is divisible by 5, print &quot;Buzz&quot;, 
+If a number is divisible by both 3 and 5 print &quot;FizzBuzz&quot;, 
+If a number is NOT divisible by 3 or 5 print the number
+</code></pre>
+<p>I think this was an interesting take on the challenge we got submissions in <a href="http://lolcode.org/">lolcode</a>, <a href="https://scratch.mit.edu/">Scratch</a>, <a href="https://vignette1.wikia.nocookie.net/fantendo/images/c/c0/Ohgodwhy.png/revision/latest?cb=20120405044625">Obfuscated C#</a>, <a href="http://www.emojicode.org/">EmojiCode</a>, and my submission in <a href="kittenlang.org">KittenLang</a>.</p>
+<p>For those who don't know about KittenLang (like me about a week ago) it is a stack based programming language. This means the compiler takes input and pushes that onto the stack so to add and multiplywould be like this:</p>
+<pre><code>$ 2
+&gt; 2
+$ 2
+&gt; 2
+&gt; 2
+$ +
+&gt; 4
+$ 3
+&gt; 3
+&gt; 4
+$ *
+&gt; 12
+</code></pre>
+<p>So this was an interesting challenge because of the way you have to loop over the range of numbers. To keep the challenge simple a CSV was provided and I wrote the code with 0..100 included in the source :).</p>
+<p>Then I was able to define a function that took an <code>Int32</code> as input and spit a <code>List&lt;Char&gt;</code> to <code>stdout</code> for the user. Below is my code:</p>
+<pre><code>#KITTEN LANG
+
+define fizzbuzz (Int32 -&gt; +IO +Fail) -&gt; x: if ( x % 15 = 0 ) { &quot;FizzBuzz&quot; say } elif ( x % 5 = 0 ) { &quot;Buzz&quot; say }  elif ( x % 3 = 0 ) { &quot;Fizz&quot; say } else { x say }
+
+[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100] \fizzbuzz each
+</code></pre>
+<p>You can see how to define the function pretty plainly but calling it with the <code>\\</code> preceeding it means that I am calling the entire function on the input,rather than evaluating the expression given incase I definted a function with the same name as a keyword or if the letters themselved were past variables or keywords on the stack. The <code>each</code> keyword means that I am running the function on <em>each</em> item of the array. At first I was using the <code>map</code> function, which I still believe should work, but that in the langague wiki page (which is imcomplete :(), says that it maps each result to an array I believe since I am returning to <code>stdout</code> that was casuing a program and with the way the language was handling strings I could not quite figure out how to utilize the <code>map</code> keyword properly for this langauge.</p>
+<p>That was it! A fun little challenge that introduced me into a new langauge and an entirely differnt style of programming.</p>
+<a class="header" href="print.html#programming-challenges" id="programming-challenges"><h1>Programming Challenges</h1></a>
+<a class="header" href="print.html#old-school" id="old-school"><h2>Old School</h2></a>
+<p>There are a lot of really good websites out there for mini-programming challenges and puzzles like <a href="http://exercism.io/languages/">Exercism</a>, <a href="https://www.hackerrank.com/">Hacker Rank</a>, and <a href="https://www.codecademy.com/">Code Academy</a>. These are really good for learning and definitely fill a need within the community. Yet, a lot of times they often fall short of challenging or diverse problems. For example, CodeAcademy is great for beginners and learning the syntax of a language but tends to fall short of difficult assignments and there's often ways to just print or return exactly what the step expects to &quot;win.&quot;</p>
+<a class="header" href="print.html#the-new-cool" id="the-new-cool"><h2>The New Cool</h2></a>
+<p>I was reading a few articles a while back on Hacker News and stumbled across the <a href="https://labs.spotify.com/">Spotify developer's blog</a> which like most highly technical companies details a little of their infrastructure and a handful of cool little technology successes that they can share with the public. The best little tidbit was the <a href="https://labs.spotify.com/puzzles/">puzzle page</a> I discovered after finishing one of their articles.</p>
+<p>Now this something I can definitely get behind. The tech sector hiring process is flawed to say the least, so Spotify is throwing some public challenges to the masses to see what people respond with, and the cool part is the are interesting, directly relatable to their business, and they are pretty difficult. I would really like to see more companies doing this for people. It's a good way to gain some interest in their company and seeing who might be suited/come up with a really great solution.</p>
+<p>The one downside is the restriction of language choice, but that's not really on them, it's probably on their testing tooling in the background based on the output and the (hopefully) protected environment in which they run it.</p>
+<p>If you know any one else who does this hit me up on <a href="https://twitter.com/degausser42">Twitter</a>!</p>
+<a class="header" href="print.html#my-late-2016-macbook-pro" id="my-late-2016-macbook-pro"><h1>My Late 2016 MacBook Pro</h1></a>
+<p>So since it is <a href="https://www.google.co.uk/?gws_rd=ssl#q=apple+macbook+pro+controversy">all the rage</a> the past couple of months I figured I would also review my experience with the late-2016 MBP (you know TOUCHBAR!). Just to give you an idea I've had a Mac all the way back since the G2 Mac Pros existed and the colored iMacs in class rooms. Ever since thing I was an Apple supporter. I have always liked Apple because they were Unix, truly lasted forever, and looked awesome. Sure they might be a little more expensive that most laptops but I had my last 3 laptops for a combined total of 12 years. That's an amazing record when you think about it.</p>
+<p>Still in my opinion one of the best things about Apple is I have a Terminal! The only Windows device we have in the house is an Xbox One and I am so happy wth that. I use a CentOS 7 Desktop at home and at work for when I need a desktop (Gaming, <em>some</em> programming but most programming can be done or test on my laptop). The way that I can very easily transition from one computer to the other is awesome. I even have my .bashrc profiles and the environment setup script detect if I am on <code>Darwin</code> or a version of <code>linux</code>.</p>
+<a class="header" href="print.html#the-form-and-looks" id="the-form-and-looks"><h2>The Form and Looks</h2></a>
+<p>I really do LOVE the way MacBook Pros have looked for a long time. At one point I had a white iBook right before they switched to the MacBooks I had a 15&quot; first Generation MacBook Pro a long time ago (and I'll never go back to a laptop that big again) and it was ALL the envy when I was in my senior year of high school and college. I then had the black MacBook and my brother has been using that <strong>same exact computer</strong> for 6 years! I'll also throw in the fact that he's not the most computer literal person (one of those people that store ALL their files on the Desktop). The MacBook has nobly held on for dear life until December 2015. That's when I upgraded to the MacBook Pro and sent him my 2011 MacBook Air. I really loved my MacBook Air and was disappointed, that is until I received this model.</p>
+<p>This model is the thinest, lightest, blah blah blah... What's it like in <em>real life</em>? It's actually really great. The screen is the perfect size (13&quot;) for me. The MacBook Air I had was a 11.5: and that was just far too small. It was difficult to browse the web, let alone try to code anything at all. The laptop (even when compared to the previous generation 13&quot;, which my wife has) is much lighter and more solid feeling than I thought it would be. It also sits nicely on your legs or on the coffee table while you type. I've been fairly uncomfortable when typing or browsing with the MacBooks I have had previous but this one is pretty awesome.</p>
+<a class="header" href="print.html#the-keyboard-and-trackpad" id="the-keyboard-and-trackpad"><h2>The Keyboard and Trackpad</h2></a>
+<a class="header" href="print.html#keyboard" id="keyboard"><h3>Keyboard</h3></a>
+<p>I'm the guy at work using the custom built PC with the old (or chiclet) Apple keyboards. To me they usually hit the nail on the head for what I like out of  keyboard. I'm not huge fan of the mechanical keyboards with their loud noise, but I do love a gaming keyboard for it's uses and comfort (I have a Logitech G510 at home for my Linux workhorse). This keyboard is amazing, hands down. I had no idea I was going to love it as much as I did. I feel both the old style chunky dell keyboard and the new style Apple &quot;Chiclet&quot; keyboard in this. It's amazing the feedback you get while typing and the <strong>huge</strong> keys are welcomed in this world of netbooks and jammed together keyboards to save space. I also love the backlighting there's almost no light leaking and it is very crisp and lights all keys evenly.</p>
+<a class="header" href="print.html#trackpad" id="trackpad"><h3>Trackpad</h3></a>
+<p>The Trackpad is also <strong>huge</strong> and it's pretty great. The form factor is nice I usually do have enough room to move all around the screen using the space without lifting my finger. I really like this so much more than a touch screen laptop which has me poking in my viewing range. I always turn off the tap-to-click feature on a laptop (I'm a bit heavy handed) so I never had the issue of accidental clicks using my palms I never really even see the mouse jump when my thumb-palms (shut up it's a thing) hit the trackpad (which they will). I also really like the haptic feedback you get from the Trackpad and the multi-press and added gestures they put in. I use multiple work spaces a lot so having those features in are really helpful for the way I (attempt) to multitask.</p>
+<a class="header" href="print.html#the-software-and-specs-and-screen" id="the-software-and-specs-and-screen"><h2>The Software and Specs and Screen</h2></a>
+<p>I am pretty firmly in the camp of having a laptop for fun and travel and a desktop that's the work horse. So I am completely fine with the specs I currently have (3.1GHz i5, 8GB RAM). I do not understand why you would really need more then 16GB in a laptop (especially one that you cannot change the memory on yourself...who would really buy that memory from Apple with their markup?!). This thing is FAST (especially when you factor in the SSD read and write speeds)! I was also coming from a 1.6GHz and 2GB MacBook Air.</p>
+<p>The software that came pre-loaded is pretty nice. The best part is that it was fairly light weight and I can now remove more apps without MacOS complaining! I do experience some weird full screen issues when working within Firefox (my preferred browser) in full screen. These took place mostly after the most recent update. I haven't been able to pinpoint if it actually is Firefox in fullscreen or if it is some heat/power issue. See the video below for the example:</p>
+<p><img src="https://thumbs.gfycat.com/TimelyLankyAzurevasesponge-size_restricted.gif" alt="testing gif" /></p>
+<p>The screen is so bright. About 99% of the time I'm on half brightness. Even when the auto-adjust kicks in I manually will turn it down because this screen can fry your eyes like the sun. So dear Apple RELEASE NIGHT MODE FOR ALL THE APPLICATIONS! I cannot tell you how many times I went from browsing Reddit (using <a href="https://userstyles.org/">Stylish</a> and night mode) to check my calendar or email to have my eyes physically hurt from the blinding white I get. There should be a night mode on all the things!</p>
+<a class="header" href="print.html#the-touchbar" id="the-touchbar"><h2>The Touchbar</h2></a>
+<p>So the major feature...the touchbar the enemy of the programmer or power user. Not really. In all honestly it really like it isn't even there if you don't want it to be. &quot;BUT no esc key!&quot; you might be thinking. Well, guess what I'm typing this in...Vim! and I reach my pinky up to use the esc key if I need to and find it just fine (real Vim users map esc to Caps lock anyways). Sure it might not have that awesome contour or click feedback the keyboard gives off but it is there and it is fine, pretty much end of story.</p>
+<p>The only thing I <em>really</em> use the touchbar for is touchID. I use it for unlocking the computer (maybe I'll have some fun and try to hack it) and the system preferences. I use it on the iPhone 7 as well and I like it a lot. I think it saves a lot of time and it's &quot;secure&quot; enough for me (insert crazy hack article from DEFCON or somewhere). I also downloaded a few Apps (<a href="http://julianthayn.com/rocket">Rocket</a>, <a href="https://github.com/avatsaev/touchbar_nyancat">Nyan Cat</a>, and <a href="https://github.com/ferdinandl007/TouchBarPong">TouchPong</a>). So really I have <em>one</em> useful thing with the Touchbar, Rocket. It's a nifty little App that essentially puts Alt-Tab on the touchbar to switch the active Workspace or display to the app you select. I re-mapped the keyboard shortcut to CMD-. because its close together and I can do it quickly with one hand. There's another app called <a href="https://9to5mac.com/2016/11/23/touchswitcher-touch-bar-app-macbook-pro/">TouchSwitcher</a> that puts the alt-tab like behavior on the touch bar as a standard set. However, if you're in an app like Safari, Calendar, or mail you won't be able to see the switcher and there's no keyboard shortcut at the time of writing this.</p>
+<p>I really liked <a href="https://www.perpetual-beta.org/weblog/thoughts-on-the-late-2016-macbook-pro.html">Jonathan Hollin</a>'s idea on making the next generation have haptic feedback. Just like the iPhone it would vibrate slightly when you did a keypress, and you can set it to only respond to a hard-press, brush, or touch.</p>
+<a class="header" href="print.html#the-battery" id="the-battery"><h2>The Battery</h2></a>
+<p>So there's probably the biggest feature that's been written about so far. I have not had much of an issue with the battery. I don't use my laptop for work and I'm not on it during the day
+(aside from the weekends) So I get about 7 hours of batter life normally. I did have a reoccurring issue where there was a stuck process somewhere completely trashing my batter life (~2 hours on a full charge). This issue (I could not figure it out with <code>top</code> or <code>ps aux</code>) was persistent even after putting the laptop to sleep. It wasn't until I shut the laptop down for a night that I returned to my normal battery life.</p>
+<p>I also don't do much intensive work while not plugged into a charger. I do some <a href="https://www.rust-lang.org">Rust</a> work and compile a few small programs but nothing large like <a href="">Servo</a> I do plan to put my laptop against my wife's' last generation MBP. As long as I don't get a stuck process I do get great battery life. Even while web browsing, pulling email from 3/4 accounts, chatting, controlling ChromeCasts etc all at once it does last around 7-8 hours.</p>
+<a class="header" href="print.html#tldr" id="tldr"><h2>TL;DR</h2></a>
+<p>Thanks again to  <a href="https://www.perpetual-beta.org/weblog/thoughts-on-the-late-2016-macbook-pro.html">Jonathan Hollin</a> for the inspiration to write up something about the new MBP.</p>
+<p>So far I am REALLY happy with the purchase. Sure it was a bit expensive (thank god for the student discount and a master's degree :D). The screen is amazing and using an old keyboard is just crap now. Sure the TouchBar is a bit gimmick-y and I don't use it, but the best thing is it doesn't get in the way at all. It also makes app switching, brightness, and volume just a little bit quicker to use. I do not use many Apple specific apps (I use Firefox) all the time but I'm trying Mail, Calendar, and Messages to see the features they have been slamming into them. I just wish I had more of a choice what was permanently on the TouchBar (such as my <a href="https://www.google.co.uk/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cad=rja&amp;uact=8&amp;ved=0ahUKEwi7yf7k1q7SAhWhB8AKHUbmAcQQFggcMAA&amp;url=https%3A%2F%2Fitunes.apple.com%2Fus%2Fapp%2Fbattery-health-2-monitor-battery-stats-and-usage%2Fid1120214373%3Fmt%3D12&amp;usg=AFQjCNGRV6FjadGAh_iQbrLpXrmTwgOUGA&amp;sig2=c04lClbQRRGUyxZM086slg">Battery Health 2</a> app)!</p>
+<a class="header" href="print.html#main" id="main"><h1>main()</h1></a>
+<p>Using <code>mdbook</code> I can do a lot of fun things like Math: \[ \int x = \frac{x^2}{2} \]</p>
+<p>AND I can even send Rust code to the <a href="https://play.rust-lang.org/">rust playground</a></p>
+<pre><pre class="playpen"><code class="language-rust">fn main() {
+    let thanks = &quot;Thanks for viewing ricky.hosfelt.io/blog!&quot;;
+    println!(&quot;{}&quot;, thanks);
+}
+
+</code></pre></pre>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+
+                
+
+            </div>
+
+            
+
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+    </body>
+</html>
